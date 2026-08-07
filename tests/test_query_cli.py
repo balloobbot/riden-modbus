@@ -61,9 +61,27 @@ def test_parse_args_serial() -> None:
 
 
 def test_parse_args_accepts_native_modbus_framing() -> None:
-    args = query._parse_args(["1.2.3.4", "--transport", "udp", "--framer", "socket"])
-    assert args.transport == "udp"
+    args = query._parse_args(["1.2.3.4", "--framer", "socket"])
+    assert args.transport == "tcp"
     assert args.framer == "socket"
+
+
+def test_parse_args_rejects_transports_a_riden_cannot_speak() -> None:
+    """Only the connections the old subcommands offered are accepted."""
+    for transport in ("udp", "tls"):
+        with pytest.raises(SystemExit):
+            query._parse_args(["1.2.3.4", "--transport", transport])
+
+
+def test_parse_args_rejects_socket_framing_on_serial(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The flags are independent, so the undeclared pair is caught by hand."""
+    with pytest.raises(SystemExit):
+        query._parse_args(
+            ["/dev/ttyUSB0", "--transport", "serial", "--framer", "socket"]
+        )
+    assert "not valid for --transport serial" in capsys.readouterr().err
 
 
 async def test_print_covers_every_section(

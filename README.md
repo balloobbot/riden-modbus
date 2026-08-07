@@ -147,10 +147,9 @@ Examples:
 ```bash
 python script/query.py 192.168.1.50 --unit 1
 python script/query.py /dev/ttyUSB0 --transport serial --unit 1
-python script/query.py 192.168.1.50 --transport udp
 ```
 
-The framing defaults to `rtu` — the supplies speak Modbus RTU, and a network gateway is normally a transparent serial bridge. Pass `--framer socket` for a gateway speaking native Modbus TCP/UDP. Run with `--help` for the full set of connection options.
+The framing defaults to `rtu` — the supplies speak Modbus RTU, and a network gateway is normally a transparent serial bridge. Pass `--framer socket` for a gateway speaking native Modbus TCP. Run with `--help` for the full set of connection options.
 
 For a supply running the ESPHome bridge firmware, `script/esphome_query.py` does the same through the ESPHome native API instead:
 

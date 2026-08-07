@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Query a Riden RD60xx over Modbus and print every value.
 
-Connects over Modbus TCP/UDP (a network gateway) or a serial/USB port, reads
-the whole device once, and dumps every sub-system's values to the terminal.
-Handy for checking a real power supply without Home Assistant.
+Connects over Modbus TCP (a network gateway) or a serial/USB port, reads the
+whole device once, and dumps every sub-system's values to the terminal. Handy
+for checking a real power supply without Home Assistant.
 
 The library only needs the connection *protocol*; the backend comes from the
 ``cli`` extra::
@@ -13,7 +13,7 @@ The library only needs the connection *protocol*; the backend comes from the
 
 The supplies speak Modbus RTU, so a network gateway is a transparent serial
 bridge: framing defaults to ``rtu`` (pass ``--framer socket`` for a gateway
-speaking native Modbus TCP/UDP) and serial to 115200 baud, 8N1.
+speaking native Modbus TCP) and serial to 115200 baud, 8N1.
 """
 
 from __future__ import annotations
@@ -44,12 +44,10 @@ SECTIONS: list[tuple[str, str]] = [
 
 # The connections a Riden can be reached over. It speaks RTU — either straight
 # down a serial line, or through a gateway that may re-frame it as native
-# Modbus TCP/UDP. ASCII framing and Modbus/TLS have no place in that picture.
+# Modbus TCP. ASCII framing, UDP and Modbus/TLS have no place in that picture.
 CONNECTIONS: tuple[tuple[str, str | None], ...] = (
     ("tcp", "rtu"),
     ("tcp", "socket"),
-    ("udp", "rtu"),
-    ("udp", "socket"),
     ("serial", "rtu"),
 )
 
@@ -61,7 +59,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         # tool pins it below, so say what the effective defaults are.
         epilog=(
             "Defaults suit a Riden: RTU framing (pass --framer socket for a "
-            "gateway speaking native Modbus TCP/UDP) and 115200 baud, 8N1 on "
+            "gateway speaking native Modbus TCP) and 115200 baud, 8N1 on "
             "serial."
         ),
     )
@@ -75,7 +73,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # add_connection_args leaves framing and baud rate to the backend; the
     # supplies need RTU at 115200, so they are the defaults here.
     parser.set_defaults(framer="rtu", baudrate=115200)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    # --transport and --framer are independent flags, so argparse accepts pairs
+    # CONNECTIONS never declared (serial can only be framed as RTU). Reject
+    # those here rather than letting the params dataclass raise on construction.
+    if (args.transport, args.framer) not in CONNECTIONS:
+        parser.error(
+            f"--framer {args.framer} is not valid for --transport {args.transport}"
+        )
+    return args
 
 
 def _print(device: RD60xx) -> None:
