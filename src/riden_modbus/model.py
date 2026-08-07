@@ -11,8 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from modbus_connection.model import Component
-from modbus_connection.model.fields import NumberField
+from modbus_connection.model import Component, NumberField
 
 from .exceptions import RidenValueValidationError
 from .ranges import REGISTER_RANGES
