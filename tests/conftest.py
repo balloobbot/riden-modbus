@@ -75,3 +75,13 @@ def rd6018(mock_modbus_unit: MockModbusUnit) -> RD60xx:
     """An RD6018 over the mock unit, preloaded with device values."""
     mock_modbus_unit.holding.update(HOLDING)
     return RD60xx(mock_modbus_unit, model=60181)
+
+
+@pytest.fixture
+def unit(mock_modbus_unit: MockModbusUnit) -> MockModbusUnit:
+    """The mock unit the ``rd6018`` fixture reads and writes through.
+
+    Request it alongside ``rd6018`` to assert on the register store a write
+    landed in, rather than reaching for the unit a component holds.
+    """
+    return mock_modbus_unit

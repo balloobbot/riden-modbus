@@ -49,7 +49,7 @@ def _fields(model: int, current_range: int) -> list[tuple[str, int, RegisterFiel
         label = type(component).__name__ + (
             f"[{component._index}]" if component._index != 1 else ""
         )
-        for field in component._register_fields.values():
+        for field in component.declared_fields.values():
             out.append((label, component._address(field), field))
     return out
 

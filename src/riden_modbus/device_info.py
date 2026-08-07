@@ -15,11 +15,14 @@ from .models import model_name
 class DeviceInformation(RidenComponent):
     """Power-supply identity and firmware version."""
 
-    manufacturer = "Riden"
-
     _model_raw = integer(0, signed=False)
     _serial_raw = uint32(1)
     _firmware_raw = gauge(3, 0.01, signed=False)
+
+    @property
+    def manufacturer(self) -> str:
+        """Manufacturer name, alongside the other identity properties."""
+        return "Riden"
 
     @property
     def model(self) -> str | None:

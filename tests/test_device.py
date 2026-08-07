@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from modbus_connection import ClientClosedError
+from modbus_connection.cli_helper import CountingUnit
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 
 from riden_modbus import (
@@ -16,26 +18,6 @@ from riden_modbus import (
 )
 
 from .conftest import HOLDING
-
-
-class _CountingUnit:
-    """Wraps a ModbusUnit and records read calls; delegates everything else."""
-
-    def __init__(self, inner: MockModbusUnit) -> None:
-        self._inner = inner
-        self.register_blocks: list[tuple[int, int]] = []
-        self.coil_blocks: list[tuple[int, int]] = []
-
-    async def read_holding_registers(self, address: int, count: int) -> list[int]:
-        self.register_blocks.append((address, count))
-        return await self._inner.read_holding_registers(address, count)
-
-    async def read_coils(self, address: int, count: int) -> list[bool]:
-        self.coil_blocks.append((address, count))
-        return await self._inner.read_coils(address, count)
-
-    def __getattr__(self, name: str) -> object:
-        return getattr(self._inner, name)
 
 
 async def test_device_info(rd6018: RD60xx) -> None:
@@ -92,6 +74,19 @@ async def test_battery(rd6018: RD60xx) -> None:
     assert battery.temperature == -5  # signed via the sign register
     assert battery.charge == pytest.approx(100.0)
     assert battery.energy == pytest.approx(66.536)
+
+
+async def test_battery_positive_temperature(unit: MockModbusUnit) -> None:
+    """A clear sign register (0) leaves the probe temperature positive."""
+    unit.holding.update({34: 0, 35: 18})
+    device = RD60xx(unit, model=60181)
+    await device.battery.async_update()
+    assert device.battery.temperature == 18
+
+
+async def test_battery_empty_before_update(rd6018: RD60xx) -> None:
+    """Without a read there is no sign register, so no temperature."""
+    assert rd6018.battery.temperature is None
 
 
 async def test_clock(rd6018: RD60xx) -> None:
@@ -155,19 +150,56 @@ async def test_presets(rd6018: RD60xx) -> None:
     assert m9.over_current_protection == pytest.approx(3.5)
 
 
-async def test_full_update_is_a_single_read() -> None:
+async def test_full_update_is_a_single_read(unit: MockModbusUnit) -> None:
     """The whole map (0-119) pools into exactly one Modbus read, no coils."""
-    inner = MockModbusConnection().for_unit(1)
-    inner.holding.update(HOLDING)
-    unit = _CountingUnit(inner)
-    device = RD60xx(unit, model=60181)  # type: ignore[arg-type]
+    unit.holding.update(HOLDING)
+    counting = CountingUnit(unit)
+    device = RD60xx(counting, model=60181)
 
     await device.async_update()
 
-    assert unit.register_blocks == [(0, 120)]
-    assert unit.coil_blocks == []
+    # CountingUnit counts every read kind, so a single read also rules out a
+    # coil or discrete-input request alongside the holding-register block.
+    assert counting.reads == 1
     assert device.output.voltage == pytest.approx(13.48)
     assert device.presets[9].voltage == pytest.approx(42.0)
+
+
+async def test_read_raw_covers_the_documented_map(unit: MockModbusUnit) -> None:
+    """The raw dump spans registers 0-119 and touches no other address space."""
+    device = RD60xx(unit, model=60181)
+
+    raw = await device.async_read_raw()
+
+    assert set(raw) == {"holding"}
+    assert sorted(raw["holding"]) == list(range(120))
+
+
+async def test_update_survives_a_dropped_connection(
+    mock_modbus_connection: MockModbusConnection, rd6018: RD60xx
+) -> None:
+    """A dropped link heals on the next update — the device is not rebuilt."""
+    await rd6018.async_update()
+    assert rd6018.output.voltage == pytest.approx(13.48)
+
+    lost: list[int] = []
+    mock_modbus_connection.on_connection_lost(lambda: lost.append(1))
+    mock_modbus_connection.simulate_connection_lost()
+    assert lost == [1]
+
+    # The same device and component handles keep working; the read reconnects.
+    await rd6018.async_update()
+    assert rd6018.output.voltage == pytest.approx(13.48)
+
+
+async def test_update_after_close_raises(
+    mock_modbus_connection: MockModbusConnection, rd6018: RD60xx
+) -> None:
+    """Closing is the owner's permanent end of the connection, not a drop."""
+    await mock_modbus_connection.close()
+
+    with pytest.raises(ClientClosedError):
+        await rd6018.async_update()
 
 
 async def test_independent_component_update(rd6018: RD60xx) -> None:
@@ -204,15 +236,13 @@ async def test_write_roundtrip(rd6018: RD60xx) -> None:
     assert rd6018.presets[0].over_voltage_protection == pytest.approx(30.0)
 
 
-async def test_write_preset(rd6018: RD60xx) -> None:
+async def test_write_preset(rd6018: RD60xx, unit: MockModbusUnit) -> None:
     """A preset write lands on the strided M-group registers."""
-    unit = rd6018.presets[1]._unit
     await rd6018.presets[1].async_write_datapoint("voltage", 9.0)
     assert (await unit.read_holding_registers(84, 1))[0] == 900
 
 
-async def test_recall_preset(rd6018: RD60xx) -> None:
-    unit = rd6018.output._unit
+async def test_recall_preset(rd6018: RD60xx, unit: MockModbusUnit) -> None:
     await rd6018.async_recall_preset(7)
     assert (await unit.read_holding_registers(19, 1))[0] == 7
 
@@ -254,8 +284,8 @@ async def test_write_validation(rd6018: RD60xx, field: str, value: float) -> Non
         await rd6018.output.async_write_datapoint(field, value)
 
 
-async def test_probe(rd6018: RD60xx) -> None:
-    probe = await RD60xx.async_probe(rd6018.output._unit)
+async def test_probe(rd6018: RD60xx, unit: MockModbusUnit) -> None:
+    probe = await RD60xx.async_probe(unit)
     assert probe.model == 60181
     assert probe.model_name == "RD6018"
     assert probe.serial_number == "12345678"
@@ -279,6 +309,6 @@ async def test_construct_unsupported_model(mock_modbus_unit: MockModbusUnit) -> 
 
 def test_fields_carry_units(rd6018: RD60xx) -> None:
     """Units live on the modbus-connection fields themselves, not a side table."""
-    assert rd6018.output._register_fields["voltage_setpoint"].unit == "V"
-    assert rd6018.output._register_fields["current_setpoint"].unit == "A"
-    assert rd6018.battery._register_fields["charge"].unit == "Ah"
+    assert rd6018.output.declared_fields["voltage_setpoint"].unit == "V"
+    assert rd6018.output.declared_fields["current_setpoint"].unit == "A"
+    assert rd6018.battery.declared_fields["charge"].unit == "Ah"

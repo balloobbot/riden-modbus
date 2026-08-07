@@ -97,6 +97,14 @@ class RD60xx:
         """Refresh all subsystems in pooled Modbus reads."""
         await self._group.async_update()
 
+    async def async_read_raw(self) -> dict[str, dict[int, int | bool]]:
+        """Refresh, and return every modeled register word by address.
+
+        The undecoded view of the same read :meth:`async_update` performs —
+        for capturing a device dump when a decoded value looks wrong.
+        """
+        return await self._group.async_read_raw()
+
     async def async_recall_preset(self, number: int) -> None:
         """Load preset group M0-M9 into the active setpoints."""
         await self.output.async_write_datapoint("active_preset", number)

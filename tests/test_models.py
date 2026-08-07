@@ -107,9 +107,9 @@ async def test_model_limits_apply_to_writes(mock_modbus_unit: MockModbusUnit) ->
     assert raw == 5000  # written in milliamps
 
 
-def test_component_classes_are_cached(rd6018: RD60xx) -> None:
+def test_component_classes_are_cached(rd6018: RD60xx, unit: MockModbusUnit) -> None:
     """Two devices of one model share the generated component classes."""
-    other = RD60xx(rd6018.output._unit, model=60182)  # any RD6018-range ID
+    other = RD60xx(unit, model=60182)  # any RD6018-range ID
     assert type(other.output) is type(rd6018.output)
     assert type(other.battery) is type(rd6018.battery)
     assert type(other.presets[0]) is type(rd6018.presets[5])

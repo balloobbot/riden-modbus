@@ -54,15 +54,18 @@ Example using `tmodbus` and transparent RTU over TCP:
 ```python
 import asyncio
 
-from modbus_connection.tmodbus import connect_tcp
+from modbus_connection import ModbusTcpParams
+from modbus_connection.tmodbus import ModbusConnection
 from riden_modbus import RD60xx
 
 
 async def main() -> None:
-    connection = await connect_tcp(
-        "192.168.1.50",
-        port=502,
-        framer="rtu",
+    connection = ModbusConnection(
+        ModbusTcpParams(
+            host="192.168.1.50",
+            port=502,
+            framer="rtu",
+        )
     )
 
     try:
@@ -94,7 +97,9 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-For a serial/USB connection, open the port through the selected backend (the supplies default to 115200 baud, 8N1, station address 1).
+Constructing the connection performs no I/O — the first request establishes the link, and a dropped link reconnects on the next one, so nothing here needs to watch for or recover from a disconnect. `close()` is the permanent end of the connection.
+
+For a serial/USB connection, build a `ModbusSerialParams` instead (the supplies default to 115200 baud, 8N1, station address 1).
 
 ## Metadata and writes
 
@@ -117,6 +122,8 @@ await component.async_write_datapoint(field, value)
 
 Field validation is applied before the value reaches the device; the RD60xx needs no write-unlock sequence.
 
+`await device.async_read_raw()` performs the same pooled read as `async_update()` but returns the undecoded register words keyed by address — useful for capturing a device dump when a decoded value looks wrong.
+
 ## ESPHome bridge firmware
 
 `esphome/rd60xx-serial-proxy.yaml` is a ready-made, distributable firmware for the ESP8266 module inside the supply. It exposes the Modbus RTU TTL link through ESPHome's `serial_proxy` component, making the ESP a transparent serial bridge that Home Assistant can drive with this library.
@@ -138,11 +145,12 @@ python -m pip install -e ".[cli]"
 Examples:
 
 ```bash
-python script/query.py tcp 192.168.1.50 --unit 1
-python script/query.py serial /dev/ttyUSB0 --unit 1
+python script/query.py 192.168.1.50 --unit 1
+python script/query.py /dev/ttyUSB0 --transport serial --unit 1
+python script/query.py 192.168.1.50 --transport udp
 ```
 
-Use `--framer rtu` for transparent RTU over TCP or `--framer socket` for native Modbus TCP.
+The framing defaults to `rtu` — the supplies speak Modbus RTU, and a network gateway is normally a transparent serial bridge. Pass `--framer socket` for a gateway speaking native Modbus TCP/UDP. Run with `--help` for the full set of connection options.
 
 For a supply running the ESPHome bridge firmware, `script/esphome_query.py` does the same through the ESPHome native API instead:
 

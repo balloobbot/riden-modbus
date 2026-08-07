@@ -52,7 +52,7 @@ class Clock(RidenComponent):
     async def set_datetime(self, value: datetime.datetime) -> None:
         """Set the device clock in one block write."""
         await self._unit.write_registers(
-            self._register_fields["year"].address,
+            self.declared_fields["year"].address,
             [
                 value.year,
                 value.month,
