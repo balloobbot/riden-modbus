@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from modbus_connection.model import enum, integer
+from modbus_connection.model import boolean, enum, integer
 
 from .enums import Language
-from .model import RidenComponent, boolean, bounded
+from .model import RidenComponent, bounded
 
 
 class Settings(RidenComponent):

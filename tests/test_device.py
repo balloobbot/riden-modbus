@@ -6,8 +6,7 @@ from datetime import datetime
 
 import pytest
 from modbus_connection import ClientClosedError
-from modbus_connection.cli_helper import CountingUnit
-from modbus_connection.mock import MockModbusConnection, MockModbusUnit
+from modbus_connection.mock import MockModbusConnection, MockModbusUnit, ReadEvent
 
 from riden_modbus import (
     Language,
@@ -16,8 +15,6 @@ from riden_modbus import (
     RD60xx,
     RidenValueValidationError,
 )
-
-from .conftest import HOLDING
 
 
 async def test_device_info(rd6018: RD60xx) -> None:
@@ -150,19 +147,15 @@ async def test_presets(rd6018: RD60xx) -> None:
     assert m9.over_current_protection == pytest.approx(3.5)
 
 
-async def test_full_update_is_a_single_read(unit: MockModbusUnit) -> None:
+async def test_full_update_is_a_single_read(
+    rd6018: RD60xx, unit: MockModbusUnit
+) -> None:
     """The whole map (0-119) pools into exactly one Modbus read, no coils."""
-    unit.holding.update(HOLDING)
-    counting = CountingUnit(unit)
-    device = RD60xx(counting, model=60181)
+    await rd6018.async_update()
 
-    await device.async_update()
-
-    # CountingUnit counts every read kind, so a single read also rules out a
-    # coil or discrete-input request alongside the holding-register block.
-    assert counting.reads == 1
-    assert device.output.voltage == pytest.approx(13.48)
-    assert device.presets[9].voltage == pytest.approx(42.0)
+    assert unit.read_events == [ReadEvent("holding", 0, 120)]
+    assert rd6018.output.voltage == pytest.approx(13.48)
+    assert rd6018.presets[9].voltage == pytest.approx(42.0)
 
 
 async def test_read_raw_covers_the_documented_map(unit: MockModbusUnit) -> None:

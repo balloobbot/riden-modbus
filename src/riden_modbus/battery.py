@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from functools import cache
 
-from modbus_connection.model import gauge, integer, raw_register, uint32
+from modbus_connection.model import boolean, gauge, integer, raw_register, uint32
 
-from .model import RidenComponent, boolean
+from .model import RidenComponent
 from .models import ModelProfile
 
 

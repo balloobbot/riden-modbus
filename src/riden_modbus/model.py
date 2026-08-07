@@ -1,9 +1,9 @@
 """The RD60xx component base and the pieces layered on modbus-connection.
 
-The field factories (``gauge``, ``integer``, ``enum`` ...) come straight from
+The field factories (``gauge``, ``integer``, ``boolean`` ...) come straight from
 ``modbus_connection.model``; this module only adds what that framework does not
-already provide: a bounded-write validator, a boolean holding-register codec
-(the RD60xx has no coils), and the range-constrained :class:`RidenComponent`.
+already provide: a bounded-write validator and the range-constrained
+:class:`RidenComponent`.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from modbus_connection.model import Component, NumberField
+from modbus_connection.model import Component
 
 from .exceptions import RidenValueValidationError
 from .ranges import REGISTER_RANGES
@@ -40,26 +40,6 @@ def bounded(
         return value
 
     return validate
-
-
-class BooleanRegisterField(NumberField[bool]):
-    """A 0/1 holding register exposed as ``bool | None``.
-
-    The RD60xx has no coils — every on/off value is a holding register.
-    """
-
-    def decode(self, words: list[int], scale_exponent: int | None = None) -> Any:
-        return bool(super().decode(words, scale_exponent))
-
-
-def boolean(
-    address: int,
-    *,
-    stride: int = 0,
-    writable: bool = False,
-) -> BooleanRegisterField:
-    """A 0/1 holding register exposed as ``bool | None``."""
-    return BooleanRegisterField(address, signed=False, stride=stride, writable=writable)
 
 
 class RidenComponent(Component):

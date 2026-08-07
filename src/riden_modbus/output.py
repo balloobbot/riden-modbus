@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from functools import cache
 
-from modbus_connection.model import enum, gauge, integer, raw_register, uint32
+from modbus_connection.model import boolean, enum, gauge, integer, raw_register, uint32
 
 from .enums import OutputMode, ProtectionStatus
-from .model import RidenComponent, boolean, bounded
+from .model import RidenComponent, bounded
 from .models import ModelProfile
 
 

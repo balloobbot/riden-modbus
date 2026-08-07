@@ -17,11 +17,11 @@ classifiers = [
 ]
 # Protocol + the device-modelling framework (modbus_connection.model). The caller
 # injects a ModbusUnit built from whichever backend they choose.
-dependencies = ["modbus-connection>=4.0"]
+dependencies = ["modbus-connection>=4.1"]
 
 [project.optional-dependencies]
 # Concrete backend for the script/query.py CLI (pip install riden-modbus[cli]).
-cli = ["modbus-connection[pymodbus]>=4.0"]
+cli = ["modbus-connection[pymodbus]>=4.1"]
 # ESPHome native-API client for script/esphome_query.py.
 esphome = ["aioesphomeapi>=45"]
 
@@ -37,7 +37,7 @@ dev = [
     # modbus-connection (its pytest plugin is auto-registered); no real backend
     # or server is needed. The pymodbus extra is only imported (never connected)
     # to exercise the query CLI's backend selection.
-    "modbus-connection[pymodbus]>=4.0",
+    "modbus-connection[pymodbus]>=4.1",
 ]
 
 [tool.hatch.build.targets.wheel]
