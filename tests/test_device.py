@@ -6,7 +6,12 @@ from datetime import datetime
 
 import pytest
 from modbus_connection import ClientClosedError
-from modbus_connection.mock import MockModbusConnection, MockModbusUnit, ReadEvent
+from modbus_connection.mock import (
+    MockModbusConnection,
+    MockModbusUnit,
+    ReadEvent,
+    WriteEvent,
+)
 
 from riden_modbus import (
     Language,
@@ -250,9 +255,17 @@ async def test_write_settings(rd6018: RD60xx) -> None:
     assert rd6018.settings.buzzer is False
 
 
-async def test_set_clock(rd6018: RD60xx) -> None:
+async def test_set_clock(rd6018: RD60xx, unit: MockModbusUnit) -> None:
     """Setting the clock writes all six words in one block write."""
+    writes: list[WriteEvent] = []
+    unit.on_write(writes.append)
+
     await rd6018.clock.set_datetime(datetime(2026, 12, 31, 23, 59, 58))
+
+    # One FC16 block from the year register, not six single-register writes.
+    assert writes == [
+        WriteEvent("holding", 48, [2026, 12, 31, 23, 59, 58], function_code=0x10)
+    ]
     await rd6018.clock.async_update()
     assert rd6018.clock.datetime == datetime(2026, 12, 31, 23, 59, 58)
 

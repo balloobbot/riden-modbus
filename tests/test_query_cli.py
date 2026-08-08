@@ -143,11 +143,8 @@ async def test_run_reports_read_error(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     connection = MockModbusConnection()
-
-    def boom() -> int:
-        raise ModbusConnectionError("device gone")
-
-    connection.for_unit(1).holding[0] = boom
+    # A device that answers nothing, rather than one poisoned register.
+    connection.for_unit(1).fail_requests(ModbusConnectionError("device gone"))
     _serve(monkeypatch, connection)
 
     assert await query._run(query._parse_args(["1.2.3.4"])) == 1

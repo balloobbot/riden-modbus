@@ -97,7 +97,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Constructing the connection performs no I/O — the first request establishes the link, and a dropped link reconnects on the next one, so nothing here needs to watch for or recover from a disconnect. `close()` is the permanent end of the connection.
+Constructing the connection performs no I/O — the first request establishes the link, and a dropped link reconnects on the next one, so nothing here needs to watch for or recover from a disconnect. For a link that stays up but stops answering (cheap serial-to-network bridges do this), `await connection.disconnect()` drops it so the next request opens a fresh one, with the device object left intact. `close()` is the permanent end of the connection.
 
 For a serial/USB connection, build a `ModbusSerialParams` instead (the supplies default to 115200 baud, 8N1, station address 1).
 
