@@ -262,7 +262,6 @@ async def test_set_clock(rd6018: RD60xx, unit: MockModbusUnit) -> None:
 
     await rd6018.clock.set_datetime(datetime(2026, 12, 31, 23, 59, 58))
 
-    # One FC16 block from the year register, not six single-register writes.
     assert writes == [
         WriteEvent("holding", 48, [2026, 12, 31, 23, 59, 58], function_code=0x10)
     ]

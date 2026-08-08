@@ -95,8 +95,6 @@ async def test_print_covers_every_section(
         assert label in out
     assert "Preset M0" in out
     assert "Preset M9" in out
-    # Rows come from the components' declared fields and properties, with the
-    # field's unit appended.
     assert "manufacturer      Riden" in out
     assert "voltage_setpoint         13.5 V" in out
     assert "temperature              32" in out
@@ -143,7 +141,6 @@ async def test_run_reports_read_error(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     connection = MockModbusConnection()
-    # A device that answers nothing, rather than one poisoned register.
     connection.for_unit(1).fail_requests(ModbusConnectionError("device gone"))
     _serve(monkeypatch, connection)
 
