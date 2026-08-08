@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
-from modbus_connection import ClientClosedError
+from modbus_connection import ClientClosedError, IllegalDataAddressError, ReadBlock
 from modbus_connection.mock import (
     MockModbusConnection,
     MockModbusUnit,
@@ -171,6 +171,19 @@ async def test_read_raw_covers_the_documented_map(unit: MockModbusUnit) -> None:
 
     assert set(raw) == {"holding"}
     assert sorted(raw["holding"]) == list(range(120))
+
+
+async def test_refused_block_aborts_the_update(
+    rd6018: RD60xx, unit: MockModbusUnit
+) -> None:
+    """A device refusing the declared range leaves the values untouched."""
+    unit.fail_read(0, IllegalDataAddressError())
+
+    with pytest.raises(IllegalDataAddressError) as caught:
+        await rd6018.async_update()
+
+    assert caught.value.block == ReadBlock("holding", 0, 120)
+    assert rd6018.output.voltage is None
 
 
 async def test_update_survives_a_dropped_connection(
