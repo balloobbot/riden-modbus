@@ -50,9 +50,13 @@ class Clock(RidenComponent):
         return datetime.datetime.combine(day, moment)
 
     async def set_datetime(self, value: datetime.datetime) -> None:
-        """Set the device clock in one block write."""
-        await self._unit.write_registers(
-            self.declared_fields["year"].address,
+        """Set the device clock in one block write.
+
+        ``resolved_fields`` gives the address the field actually sits at, so a
+        clock placed with ``base_offset`` writes where it is read.
+        """
+        await self.modbus_unit.write_registers(
+            self.resolved_fields["year"].address,
             [
                 value.year,
                 value.month,

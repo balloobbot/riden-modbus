@@ -24,7 +24,12 @@ import sys
 import time
 from pathlib import Path
 
-from modbus_connection import ModbusProtocolError, ModbusTimeoutError
+from modbus_connection import (
+    ModbusError,
+    ModbusExceptionError,
+    ModbusProtocolError,
+    ModbusTimeoutError,
+)
 
 from riden_modbus import RD60xx
 
@@ -173,7 +178,10 @@ class SerialProxyUnit:
         if _crc16(frame[:-2]) != int.from_bytes(frame[-2:], "little"):
             raise ModbusProtocolError(f"CRC mismatch in response {frame.hex()}")
         if frame[1] & 0x80:
-            raise ModbusProtocolError(f"Modbus exception code {frame[2]}")
+            # A refusal is a well-formed answer, not a broken frame: hand the
+            # code to modbus-connection so it raises the typed class for it
+            # (IllegalDataAddressError and friends) instead of a magic number.
+            raise ModbusExceptionError.from_code(frame[2])
         return frame
 
 
@@ -218,7 +226,7 @@ async def _run(args: argparse.Namespace) -> int:
             start = time.monotonic()
             await device.async_update()
             elapsed = time.monotonic() - start
-        except (ModbusTimeoutError, ModbusProtocolError) as err:
+        except ModbusError as err:
             print(f"Error reading device: {err}", file=sys.stderr)
             return 1
         finally:

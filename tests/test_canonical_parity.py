@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from modbus_connection.model import RegisterField
+from modbus_connection.model import ResolvedField
 
 from riden_modbus import RD60xx, profile_for
 
@@ -41,16 +41,20 @@ MODELS = [
 ]
 
 
-def _fields(model: int, current_range: int) -> list[tuple[str, int, RegisterField]]:
-    """Every (component, effective address, field) across all components."""
+def _fields(model: int, current_range: int) -> list[tuple[str, ResolvedField]]:
+    """Every (component label, resolved field) across all components.
+
+    ``resolved_fields`` reports where each declared field actually lands —
+    absolute address and register count — so the spec is checked against the
+    layout the planner reads, not against a re-derived address.
+    """
     device = RD60xx(unit=None, model=model, current_range=current_range)  # type: ignore[arg-type]
-    out: list[tuple[str, int, RegisterField]] = []
+    out: list[tuple[str, ResolvedField]] = []
     for component in device.components:
         label = type(component).__name__ + (
             f"[{component._index}]" if component._index != 1 else ""
         )
-        for field in component.declared_fields.values():
-            out.append((label, component._address(field), field))
+        out.extend((label, resolved) for resolved in component.resolved_fields.values())
     return out
 
 
@@ -59,22 +63,23 @@ REGISTER_CASES = [
         model,
         current_range,
         label,
-        addr,
-        field,
+        resolved,
         id=f"{profile_for(model, current_range=current_range).name}"
-        f"{'/high' if current_range else ''}.{label}.{field.name}",
+        f"{'/high' if current_range else ''}.{label}.{resolved.field.name}",
     )
     for model, current_range in MODELS
-    for label, addr, field in _fields(model, current_range)
+    for label, resolved in _fields(model, current_range)
 ]
 
 
 @pytest.mark.parametrize(
-    ("model", "current_range", "label", "address", "field"), REGISTER_CASES
+    ("model", "current_range", "label", "resolved"), REGISTER_CASES
 )
 def test_register_matches_canonical(
-    model: int, current_range: int, label: str, address: int, field: RegisterField
+    model: int, current_range: int, label: str, resolved: ResolvedField
 ) -> None:
+    field = resolved.field
+    address = resolved.address
     assert address in CANON_REG, f"{label}.{field.name} address {address} not in spec"
     entry = CANON_REG[address]
     # Plain scaled numbers (not enum-mapped) must match the canonical scale,
@@ -94,8 +99,9 @@ def test_register_matches_canonical(
 
 def test_no_field_spans_out_of_spec() -> None:
     """Multi-word fields (uint32) stay inside documented registers."""
-    for label, address, field in _fields(60181, 0):
-        for offset in range(field.count):
-            assert address + offset in CANON_REG, (
-                f"{label}.{field.name} word {offset} at {address + offset} not in spec"
+    for label, resolved in _fields(60181, 0):
+        for offset in range(resolved.count):
+            address = resolved.address + offset
+            assert address in CANON_REG, (
+                f"{label}.{resolved.field.name} word {offset} at {address} not in spec"
             )

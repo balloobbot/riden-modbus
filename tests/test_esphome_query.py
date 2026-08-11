@@ -15,7 +15,11 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
-from modbus_connection import ModbusProtocolError, ModbusTimeoutError
+from modbus_connection import (
+    IllegalDataAddressError,
+    ModbusProtocolError,
+    ModbusTimeoutError,
+)
 
 from .conftest import HOLDING
 
@@ -181,10 +185,12 @@ async def test_unit_write_registers() -> None:
 
 
 async def test_unit_reports_modbus_exception() -> None:
+    """A refusal surfaces as the typed class for its code, not a magic number."""
     exception = esphome_query._frame(bytes.fromhex("018302"))
     pipe = _PipeUnit([exception])
-    with pytest.raises(ModbusProtocolError, match="exception code 2"):
+    with pytest.raises(IllegalDataAddressError) as caught:
         await pipe.unit.read_holding_registers(0, 1)
+    assert caught.value.exception_code == 2
 
 
 async def test_unit_rejects_bad_crc() -> None:

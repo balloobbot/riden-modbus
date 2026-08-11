@@ -30,11 +30,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The library declares modbus-connection>=4.3, so verify both ends of
+        # The library declares modbus-connection>=4.4, so verify both ends of
         # that range — consumers (e.g. Home Assistant) resolve their own version.
         include:
           - name: floor
-            override: "--with modbus-connection==4.3.0"
+            override: "--with modbus-connection==4.4.0"
           - name: latest
             override: ""
     name: test (modbus-connection ${{ matrix.name }})

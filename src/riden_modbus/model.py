@@ -8,10 +8,9 @@ already provide: a bounded-write validator and the range-constrained
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
-from modbus_connection.model import Component
+from modbus_connection.model import Component, WriteValidator
 
 from .exceptions import RidenValueValidationError
 from .ranges import REGISTER_RANGES
@@ -20,7 +19,7 @@ from .ranges import REGISTER_RANGES
 def bounded(
     min_value: float | int | None = None,
     max_value: float | int | None = None,
-) -> Callable[[Any], Any]:
+) -> WriteValidator:
     """Return a write validator that rejects out-of-range numeric values.
 
     Passed as a field's ``writable`` argument: modbus-connection calls it with
