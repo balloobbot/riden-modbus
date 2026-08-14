@@ -122,7 +122,7 @@ await component.async_write_datapoint(field, value)
 
 Field validation is applied before the value reaches the device; the RD60xx needs no write-unlock sequence.
 
-`await device.async_read_raw()` performs the same pooled read as `async_update()` but returns the undecoded register words keyed by address — useful for capturing a device dump when a decoded value looks wrong.
+`await device.async_read_raw()` performs the same pooled read as `async_update()` but returns the undecoded register words keyed by address — useful for capturing a device dump when a decoded value looks wrong. The fields refresh, but no listener fires — downloading a dump must not look like a poll.
 
 ## ESPHome bridge firmware
 

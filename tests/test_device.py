@@ -173,6 +173,17 @@ async def test_read_raw_covers_the_documented_map(unit: MockModbusUnit) -> None:
     assert sorted(raw["holding"]) == list(range(120))
 
 
+async def test_read_raw_does_not_notify(rd6018: RD60xx) -> None:
+    """A dump refreshes the fields, but must not look like a poll."""
+    calls: list[int] = []
+    rd6018.output.add_update_listener(lambda: calls.append(1))
+
+    await rd6018.async_read_raw()
+
+    assert calls == []
+    assert rd6018.output.voltage == pytest.approx(13.48)
+
+
 async def test_refused_block_aborts_the_update(
     rd6018: RD60xx, unit: MockModbusUnit
 ) -> None:
